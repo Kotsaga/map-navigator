@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <title>Навигатор</title>
+    <style>
+        body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
+        
+        /* Контейнер для карты и интерфейса */
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        /* Левая панель с формами */
+        .auth-panel {
+            width: 300px;
+            background: #f5f5f5;
+            padding: 20px;
+            border-right: 1px solid #ddd;
+            overflow-y: auto;
+        }
+        
+        /* Правая часть с картой */
+        #map {
+            flex: 1;
+            height: 100vh;
+        }
+        
+        /* Стили для форм */
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+        
+        .switch-form {
+            text-align: center;
+            margin-top: 15px;
+            color: #666;
+        }
+        
+        .switch-form a {
+            color: #4CAF50;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        
+        .switch-form a:hover {
+            text-decoration: underline;
+        }
+        
+        .message {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        h2 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        
+        .user-info {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Левая панель с формами -->
+        <div class="auth-panel">
+            <h2>🗺️ Навигатор</h2>
+            
+            <!-- Блок для отображения сообщений -->
+            <div id="messageBox" style="display: none;"></div>
+            
+            <!-- Информация о пользователе (показывается после входа) -->
+            <div id="userInfo" style="display: none;" class="user-info"></div>
+            
+            <!-- Форма входа -->
+            <div id="loginForm">
+                <h3>Вход</h3>
+                <div class="form-group">
+                    <label>Email:</label>
+                    <input type="email" id="loginEmail" placeholder="email@example.com">
+                </div>
+                <div class="form-group">
+                    <label>Пароль:</label>
+                    <input type="password" id="loginPassword" placeholder="••••••">
+                </div>
+                <button onclick="login()">Войти</button>
+                <div class="switch-form">
+                    Нет аккаунта? <a onclick="showRegister()">Зарегистрироваться</a>
+                </div>
+            </div>
+            
+            <!-- Форма регистрации (скрыта по умолчанию) -->
+            <div id="registerForm" style="display: none;">
+                <h3>Регистрация</h3>
+                <div class="form-group">
+                    <label>Email:</label>
+                    <input type="email" id="regEmail" placeholder="email@example.com">
+                </div>
+                <div class="form-group">
+                    <label>Пароль:</label>
+                    <input type="password" id="regPassword" placeholder="••••••">
+                </div>
+                <button onclick="register()">Зарегистрироваться</button>
+                <div class="switch-form">
+                    Уже есть аккаунт? <a onclick="showLogin()">Войти</a>
+                </div>
+            </div>
+            
+            <!-- Форма для ввода кода 2FA (скрыта по умолчанию) -->
+            <div id="codeForm" style="display: none;">
+                <h3>Подтверждение</h3>
+                <p>На ваш email отправлен код подтверждения</p>
+                <div class="form-group">
+                    <label>Код:</label>
+                    <input type="text" id="code" placeholder="5 цифр">
+                </div>
+                <button onclick="verifyCode()">Подтвердить</button>
+                <div class="switch-form">
+                    <a onclick="showLogin()">Вернуться ко входу</a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Правая часть с картой -->
+        <div id="map"></div>
+    </div>
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // ========== РАБОТА С КАРТОЙ ==========
+        var map = L.map('map').setView([55.7522, 37.6156], 4);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+        
+        // Функция для исправления кодировки
+        function fixEncoding(str) {
+            if (!str) return '';
+            try {
+                return decodeURIComponent(escape(str));
+            } catch (e) {
+                return str;
+            }
+        }
+        
+        // Загружаем города
+        fetch('http://127.0.0.1:8000/cities')
+            .then(response => response.json())
+            .then(cities => {
+                console.log('Загружено городов:', cities.length);
+                
+                cities.forEach(city => {
+                    city.name = fixEncoding(city.name);
+                    city.description = fixEncoding(city.description);
+                    
+                    var marker = L.marker([city.latitude, city.longitude]).addTo(map);
+                    marker.bindPopup(
+                        '<b>' + city.name + '</b><br>' +
+                        (city.description || 'Нет описания')
+                    );
+                });
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+                alert('Не удалось загрузить города. Проверьте, запущен ли сервер!');
+            });
+        
+        // ========== АВТОРИЗАЦИЯ ==========
+        
+        // Переменные для хранения данных пользователя
+// Переменные для хранения данных пользователя
+let currentUserId = null;
+let currentUserEmail = null;
+
+// Показать сообщение
+function showMessage(text, isSuccess) {
+    const box = document.getElementById('messageBox');
+    box.style.display = 'block';
+    box.className = 'message ' + (isSuccess ? 'success' : 'error');
+    box.innerHTML = text;
+    
+    // Автоматически скрыть сообщение через 3 секунды
+    setTimeout(() => {
+        box.style.display = 'none';
+    }, 3000);
+}
+
+// Показать форму входа (скрыть всё остальное)
+function showLogin() {
+    document.getElementById('loginForm').style.display = 'block';
+    document.getElementById('registerForm').style.display = 'none';
+    document.getElementById('codeForm').style.display = 'none';
+    document.getElementById('userInfo').style.display = 'none';
+    document.getElementById('messageBox').style.display = 'none';
+}
+
+// Показать форму регистрации
+function showRegister() {
+    document.getElementById('loginForm').style.display = 'none';
+    document.getElementById('registerForm').style.display = 'block';
+    document.getElementById('codeForm').style.display = 'none';
+    document.getElementById('userInfo').style.display = 'none';
+    document.getElementById('messageBox').style.display = 'none';
+}
+
+// Показать форму для кода (скрыть формы входа/регистрации)
+function showCodeForm(userId) {
+    currentUserId = userId;
+    document.getElementById('loginForm').style.display = 'none';
+    document.getElementById('registerForm').style.display = 'none';
+    document.getElementById('codeForm').style.display = 'block';
+    document.getElementById('userInfo').style.display = 'none';
+    document.getElementById('messageBox').style.display = 'none';
+}
+
+// Показать профиль пользователя (скрыть все формы)
+function showUserProfile(email) {
+    currentUserEmail = email;
+    
+    // Скрываем все формы
+    document.getElementById('loginForm').style.display = 'none';
+    document.getElementById('registerForm').style.display = 'none';
+    document.getElementById('codeForm').style.display = 'none';
+    
+    // Показываем информацию о пользователе
+    const infoDiv = document.getElementById('userInfo');
+    infoDiv.style.display = 'block';
+    infoDiv.innerHTML = `
+        <div style="text-align: center;">
+            <div style="font-size: 48px; margin-bottom: 10px;">👤</div>
+            <div style="font-weight: bold; margin-bottom: 5px;">${escapeHtml(email)}</div>
+            <div style="color: #666; font-size: 12px; margin-bottom: 15px;">Вы вошли в аккаунт</div>
+            <button onclick="logout()" style="width: 100%; padding: 8px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                Выйти
+            </button>
+        </div>
+    `;
+}
+
+// Простая функция для экранирования HTML (безопасность)
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Выход из аккаунта
+function logout() {
+    currentUserId = null;
+    currentUserEmail = null;
+    showLogin();
+    showMessage('Вы вышли из аккаунта', true);
+}
+
+// Регистрация
+async function register() {
+    const email = document.getElementById('regEmail').value;
+    const password = document.getElementById('regPassword').value;
+    
+    if (!email || !password) {
+        showMessage('Заполните все поля', false);
+        return;
+    }
+    
+    try {
+        const formData = new FormData();
+        formData.append('email', email);
+        formData.append('password', password);
+        
+        const response = await fetch('http://127.0.0.1:8000/register', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showMessage('Регистрация успешна! Теперь войдите', true);
+            showLogin();
+            // Очищаем поля
+            document.getElementById('regEmail').value = '';
+            document.getElementById('regPassword').value = '';
+        } else {
+            showMessage(data.detail || 'Ошибка регистрации', false);
+        }
+    } catch (error) {
+        showMessage('Ошибка подключения к серверу', false);
+    }
+}
+
+// Вход (первый шаг)
+async function login() {
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    
+    if (!email || !password) {
+        showMessage('Заполните все поля', false);
+        return;
+    }
+    
+    try {
+        const formData = new FormData();
+        formData.append('email', email);
+        formData.append('password', password);
+        
+        const response = await fetch('http://127.0.0.1:8000/login', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showCodeForm(data.user_id);
+            showMessage('Код отправлен на почту! Проверьте ' + email, true);
+            // Очищаем поле пароля
+            document.getElementById('loginPassword').value = '';
+        } else {
+            showMessage(data.detail || 'Ошибка входа', false);
+        }
+    } catch (error) {
+        showMessage('Ошибка подключения к серверу', false);
+    }
+}
+
+// Проверка кода (второй шаг)
+async function verifyCode() {
+    const code = document.getElementById('code').value;
+    
+    if (!code) {
+        showMessage('Введите код', false);
+        return;
+    }
+    
+    try {
+        const formData = new FormData();
+        formData.append('user_id', currentUserId);
+        formData.append('code', code);
+        
+        const response = await fetch('http://127.0.0.1:8000/verify-code', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            // Успешный вход! Показываем профиль
+            showUserProfile(data.user.email);
+            showMessage('Добро пожаловать!', true);
+            // Очищаем поле кода
+            document.getElementById('code').value = '';
+        } else {
+            showMessage(data.detail || 'Неверный код', false);
+        }
+    } catch (error) {
+        showMessage('Ошибка подключения к серверу', false);
+    }
+}
+    </script>
+</body>
+</html>
