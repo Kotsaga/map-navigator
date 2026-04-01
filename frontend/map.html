@@ -7,28 +7,24 @@
     <style>
         body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
         
-        /* Контейнер для карты и интерфейса */
         .container {
             display: flex;
             height: 100vh;
         }
         
-        /* Левая панель с формами */
         .auth-panel {
-            width: 300px;
+            width: 350px;
             background: #f5f5f5;
             padding: 20px;
             border-right: 1px solid #ddd;
             overflow-y: auto;
         }
         
-        /* Правая часть с картой */
         #map {
             flex: 1;
             height: 100vh;
         }
         
-        /* Стили для форм */
         .form-group {
             margin-bottom: 15px;
         }
@@ -39,7 +35,7 @@
             font-weight: bold;
         }
         
-        input {
+        input, select {
             width: 100%;
             padding: 8px;
             border: 1px solid #ddd;
@@ -56,10 +52,27 @@
             border-radius: 4px;
             cursor: pointer;
             font-size: 16px;
+            margin-top: 5px;
         }
         
         button:hover {
             background: #45a049;
+        }
+        
+        .btn-secondary {
+            background: #2196F3;
+        }
+        
+        .btn-secondary:hover {
+            background: #0b7dda;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
         }
         
         .switch-form {
@@ -72,10 +85,6 @@
             color: #4CAF50;
             text-decoration: none;
             cursor: pointer;
-        }
-        
-        .switch-form a:hover {
-            text-decoration: underline;
         }
         
         .message {
@@ -96,10 +105,9 @@
             border: 1px solid #f5c6cb;
         }
         
-        h2 {
+        h2, h3 {
             text-align: center;
             color: #333;
-            margin-bottom: 30px;
         }
         
         .user-info {
@@ -108,83 +116,188 @@
             border-radius: 4px;
             margin-bottom: 20px;
         }
+        
+        .tabs {
+            display: flex;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .tab-btn {
+            flex: 1;
+            padding: 10px;
+            background: #f5f5f5;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .tab-btn.active {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .route-result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e9ecef;
+            border-radius: 8px;
+        }
+        
+        .favorite-item {
+            background: #fff;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        
+        .favorite-item button {
+            width: auto;
+            padding: 5px 10px;
+            margin-top: 5px;
+            margin-right: 5px;
+        }
+        
+        .param-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Левая панель с формами -->
         <div class="auth-panel">
             <h2>🗺️ Навигатор</h2>
             
-            <!-- Блок для отображения сообщений -->
             <div id="messageBox" style="display: none;"></div>
-            
-            <!-- Информация о пользователе (показывается после входа) -->
             <div id="userInfo" style="display: none;" class="user-info"></div>
             
-            <!-- Форма входа -->
-            <div id="loginForm">
-                <h3>Вход</h3>
-                <div class="form-group">
-                    <label>Email:</label>
-                    <input type="email" id="loginEmail" placeholder="email@example.com">
-                </div>
-                <div class="form-group">
-                    <label>Пароль:</label>
-                    <input type="password" id="loginPassword" placeholder="••••••">
-                </div>
-                <button onclick="login()">Войти</button>
-                <div class="switch-form">
-                    Нет аккаунта? <a onclick="showRegister()">Зарегистрироваться</a>
+            <!-- Вкладки -->
+            <div id="tabs" style="display: none;">
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="showTab('map')">🗺️ Карта</button>
+                    <button class="tab-btn" onclick="showTab('favorites')">⭐ Избранное</button>
                 </div>
             </div>
             
-            <!-- Форма регистрации (скрыта по умолчанию) -->
-            <div id="registerForm" style="display: none;">
-                <h3>Регистрация</h3>
-                <div class="form-group">
-                    <label>Email:</label>
-                    <input type="email" id="regEmail" placeholder="email@example.com">
+            <!-- Панель карты -->
+            <div id="mapPanel">
+                <!-- Форма входа -->
+                <div id="loginForm">
+                    <h3>Вход</h3>
+                    <div class="form-group">
+                        <label>Email:</label>
+                        <input type="email" id="loginEmail" placeholder="email@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Пароль:</label>
+                        <input type="password" id="loginPassword" placeholder="••••••">
+                    </div>
+                    <button onclick="login()">Войти</button>
+                    <div class="switch-form">
+                        Нет аккаунта? <a onclick="showRegister()">Зарегистрироваться</a>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Пароль:</label>
-                    <input type="password" id="regPassword" placeholder="••••••">
+                
+                <!-- Форма регистрации -->
+                <div id="registerForm" style="display: none;">
+                    <h3>Регистрация</h3>
+                    <div class="form-group">
+                        <label>Email:</label>
+                        <input type="email" id="regEmail" placeholder="email@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Пароль:</label>
+                        <input type="password" id="regPassword" placeholder="••••••">
+                    </div>
+                    <button onclick="register()">Зарегистрироваться</button>
+                    <div class="switch-form">
+                        Уже есть аккаунт? <a onclick="showLogin()">Войти</a>
+                    </div>
                 </div>
-                <button onclick="register()">Зарегистрироваться</button>
-                <div class="switch-form">
-                    Уже есть аккаунт? <a onclick="showLogin()">Войти</a>
+                
+                <!-- Форма для кода -->
+                <div id="codeForm" style="display: none;">
+                    <h3>Подтверждение</h3>
+                    <p>На ваш email отправлен код подтверждения</p>
+                    <div class="form-group">
+                        <label>Код:</label>
+                        <input type="text" id="code" placeholder="5 цифр">
+                    </div>
+                    <button onclick="verifyCode()">Подтвердить</button>
+                    <div class="switch-form">
+                        <a onclick="showLogin()">Вернуться ко входу</a>
+                    </div>
                 </div>
+                
+                <!-- Калькулятор маршрута -->
+                <div id="routeCalculator" style="display: none;">
+                    <h3>🛣️ Построить маршрут</h3>
+                    <div class="form-group">
+                        <label>Откуда:</label>
+                        <select id="fromCity">
+                            <option value="">Выберите город</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Куда:</label>
+                        <select id="toCity">
+                            <option value="">Выберите город</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>🚗 Средняя скорость (км/ч):</label>
+                        <input type="number" id="avgSpeed" value="90" step="5">
+                    </div>
+                    <div class="form-group">
+                        <label>⛽ Расход топлива (л/100км):</label>
+                        <input type="number" id="fuelConsumption" value="8" step="0.5">
+                    </div>
+                    <div class="form-group">
+                        <label>💰 Цена топлива (руб/л):</label>
+                        <input type="number" id="fuelPrice" value="55" step="1">
+                    </div>
+                    <button onclick="calculateRoute()">Рассчитать</button>
+                    <button onclick="saveCurrentRoute()" class="btn-secondary" id="saveRouteBtn">⭐ Сохранить в избранное</button>
+                </div>
+                
+                <!-- Результат расчёта -->
+                <div id="routeResult" style="display: none;" class="route-result"></div>
             </div>
             
-            <!-- Форма для ввода кода 2FA (скрыта по умолчанию) -->
-            <div id="codeForm" style="display: none;">
-                <h3>Подтверждение</h3>
-                <p>На ваш email отправлен код подтверждения</p>
-                <div class="form-group">
-                    <label>Код:</label>
-                    <input type="text" id="code" placeholder="5 цифр">
-                </div>
-                <button onclick="verifyCode()">Подтвердить</button>
-                <div class="switch-form">
-                    <a onclick="showLogin()">Вернуться ко входу</a>
-                </div>
+            <!-- Панель избранного -->
+            <div id="favoritesPanel" style="display: none;">
+                <h3>⭐ Избранные маршруты</h3>
+                <div id="favoritesList"></div>
             </div>
         </div>
         
-        <!-- Правая часть с картой -->
         <div id="map"></div>
     </div>
     
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // ========== РАБОТА С КАРТОЙ ==========
-        var map = L.map('map').setView([55.7522, 37.6156], 4);
+        // ========== ПЕРЕМЕННЫЕ ==========
+        let map;
+        let currentUserId = null;
+        let currentUserEmail = null;
+        let currentFromCity = null;
+        let currentToCity = null;
+        let currentFromCityName = null;
+        let currentToCityName = null;
         
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap'
-        }).addTo(map);
+        // ========== ИНИЦИАЛИЗАЦИЯ КАРТЫ ==========
+        function initMap() {
+            map = L.map('map').setView([55.7522, 37.6156], 4);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
+            
+            loadCitiesToMap();
+        }
         
-        // Функция для исправления кодировки
         function fixEncoding(str) {
             if (!str) return '';
             try {
@@ -194,220 +307,399 @@
             }
         }
         
-        // Загружаем города
-        fetch('http://127.0.0.1:8000/cities')
-            .then(response => response.json())
-            .then(cities => {
-                console.log('Загружено городов:', cities.length);
+        async function loadCitiesToMap() {
+            try {
+                const response = await fetch('http://127.0.0.1:8000/cities');
+                const cities = await response.json();
                 
                 cities.forEach(city => {
                     city.name = fixEncoding(city.name);
                     city.description = fixEncoding(city.description);
                     
-                    var marker = L.marker([city.latitude, city.longitude]).addTo(map);
-                    marker.bindPopup(
-                        '<b>' + city.name + '</b><br>' +
-                        (city.description || 'Нет описания')
-                    );
+                    L.marker([city.latitude, city.longitude])
+                        .addTo(map)
+                        .bindPopup(`<b>${city.name}</b><br>${city.description || 'Нет описания'}`);
                 });
-            })
-            .catch(error => {
-                console.error('Ошибка:', error);
-                alert('Не удалось загрузить города. Проверьте, запущен ли сервер!');
-            });
+            } catch (error) {
+                console.error('Ошибка загрузки городов:', error);
+            }
+        }
+        
+        // ========== ЗАГРУЗКА ГОРОДОВ ДЛЯ СЕЛЕКТОВ ==========
+        async function loadCitiesForSelect() {
+            try {
+                const response = await fetch('http://127.0.0.1:8000/cities');
+                const cities = await response.json();
+                
+                const fromSelect = document.getElementById('fromCity');
+                const toSelect = document.getElementById('toCity');
+                
+                fromSelect.innerHTML = '<option value="">Выберите город</option>';
+                toSelect.innerHTML = '<option value="">Выберите город</option>';
+                
+                cities.forEach(city => {
+                    const name = fixEncoding(city.name);
+                    const option1 = document.createElement('option');
+                    option1.value = city.id;
+                    option1.textContent = name;
+                    fromSelect.appendChild(option1);
+                    
+                    const option2 = document.createElement('option');
+                    option2.value = city.id;
+                    option2.textContent = name;
+                    toSelect.appendChild(option2);
+                });
+            } catch (error) {
+                console.error('Ошибка загрузки городов:', error);
+            }
+        }
+        
+        // ========== UI ФУНКЦИИ ==========
+        function showMessage(text, isSuccess) {
+            const box = document.getElementById('messageBox');
+            box.style.display = 'block';
+            box.className = 'message ' + (isSuccess ? 'success' : 'error');
+            box.innerHTML = text;
+            setTimeout(() => {
+                box.style.display = 'none';
+            }, 3000);
+        }
+        
+        function showLogin() {
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('codeForm').style.display = 'none';
+            document.getElementById('userInfo').style.display = 'none';
+            document.getElementById('tabs').style.display = 'none';
+            document.getElementById('mapPanel').style.display = 'block';
+            document.getElementById('favoritesPanel').style.display = 'none';
+        }
+        
+        function showRegister() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'block';
+            document.getElementById('codeForm').style.display = 'none';
+            document.getElementById('userInfo').style.display = 'none';
+        }
+        
+        function showCodeForm(userId) {
+            currentUserId = userId;
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('codeForm').style.display = 'block';
+            document.getElementById('userInfo').style.display = 'none';
+        }
+        
+        function showUserProfile(email) {
+            currentUserEmail = email;
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('codeForm').style.display = 'none';
+            document.getElementById('tabs').style.display = 'block';
+            document.getElementById('mapPanel').style.display = 'block';
+            document.getElementById('favoritesPanel').style.display = 'none';
+            
+            const infoDiv = document.getElementById('userInfo');
+            infoDiv.style.display = 'block';
+            infoDiv.innerHTML = `
+                <div style="text-align: center;">
+                    <div style="font-size: 48px;">👤</div>
+                    <div style="font-weight: bold;">${escapeHtml(email)}</div>
+                    <button onclick="logout()" class="btn-danger" style="margin-top: 10px;">Выйти</button>
+                </div>
+            `;
+            
+            loadCitiesForSelect();
+            document.getElementById('routeCalculator').style.display = 'block';
+        }
+        
+        function showTab(tab) {
+            const mapPanel = document.getElementById('mapPanel');
+            const favoritesPanel = document.getElementById('favoritesPanel');
+            const btns = document.querySelectorAll('.tab-btn');
+            
+            btns.forEach(btn => btn.classList.remove('active'));
+            
+            if (tab === 'map') {
+                mapPanel.style.display = 'block';
+                favoritesPanel.style.display = 'none';
+                btns[0].classList.add('active');
+            } else {
+                mapPanel.style.display = 'none';
+                favoritesPanel.style.display = 'block';
+                btns[1].classList.add('active');
+                loadFavorites();
+            }
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function logout() {
+            currentUserId = null;
+            currentUserEmail = null;
+            showLogin();
+            showMessage('Вы вышли из аккаунта', true);
+        }
         
         // ========== АВТОРИЗАЦИЯ ==========
-        
-        // Переменные для хранения данных пользователя
-// Переменные для хранения данных пользователя
-let currentUserId = null;
-let currentUserEmail = null;
-
-// Показать сообщение
-function showMessage(text, isSuccess) {
-    const box = document.getElementById('messageBox');
-    box.style.display = 'block';
-    box.className = 'message ' + (isSuccess ? 'success' : 'error');
-    box.innerHTML = text;
-    
-    // Автоматически скрыть сообщение через 3 секунды
-    setTimeout(() => {
-        box.style.display = 'none';
-    }, 3000);
-}
-
-// Показать форму входа (скрыть всё остальное)
-function showLogin() {
-    document.getElementById('loginForm').style.display = 'block';
-    document.getElementById('registerForm').style.display = 'none';
-    document.getElementById('codeForm').style.display = 'none';
-    document.getElementById('userInfo').style.display = 'none';
-    document.getElementById('messageBox').style.display = 'none';
-}
-
-// Показать форму регистрации
-function showRegister() {
-    document.getElementById('loginForm').style.display = 'none';
-    document.getElementById('registerForm').style.display = 'block';
-    document.getElementById('codeForm').style.display = 'none';
-    document.getElementById('userInfo').style.display = 'none';
-    document.getElementById('messageBox').style.display = 'none';
-}
-
-// Показать форму для кода (скрыть формы входа/регистрации)
-function showCodeForm(userId) {
-    currentUserId = userId;
-    document.getElementById('loginForm').style.display = 'none';
-    document.getElementById('registerForm').style.display = 'none';
-    document.getElementById('codeForm').style.display = 'block';
-    document.getElementById('userInfo').style.display = 'none';
-    document.getElementById('messageBox').style.display = 'none';
-}
-
-// Показать профиль пользователя (скрыть все формы)
-function showUserProfile(email) {
-    currentUserEmail = email;
-    
-    // Скрываем все формы
-    document.getElementById('loginForm').style.display = 'none';
-    document.getElementById('registerForm').style.display = 'none';
-    document.getElementById('codeForm').style.display = 'none';
-    
-    // Показываем информацию о пользователе
-    const infoDiv = document.getElementById('userInfo');
-    infoDiv.style.display = 'block';
-    infoDiv.innerHTML = `
-        <div style="text-align: center;">
-            <div style="font-size: 48px; margin-bottom: 10px;">👤</div>
-            <div style="font-weight: bold; margin-bottom: 5px;">${escapeHtml(email)}</div>
-            <div style="color: #666; font-size: 12px; margin-bottom: 15px;">Вы вошли в аккаунт</div>
-            <button onclick="logout()" style="width: 100%; padding: 8px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                Выйти
-            </button>
-        </div>
-    `;
-}
-
-// Простая функция для экранирования HTML (безопасность)
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-// Выход из аккаунта
-function logout() {
-    currentUserId = null;
-    currentUserEmail = null;
-    showLogin();
-    showMessage('Вы вышли из аккаунта', true);
-}
-
-// Регистрация
-async function register() {
-    const email = document.getElementById('regEmail').value;
-    const password = document.getElementById('regPassword').value;
-    
-    if (!email || !password) {
-        showMessage('Заполните все поля', false);
-        return;
-    }
-    
-    try {
-        const formData = new FormData();
-        formData.append('email', email);
-        formData.append('password', password);
-        
-        const response = await fetch('http://127.0.0.1:8000/register', {
-            method: 'POST',
-            body: formData
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            showMessage('Регистрация успешна! Теперь войдите', true);
-            showLogin();
-            // Очищаем поля
-            document.getElementById('regEmail').value = '';
-            document.getElementById('regPassword').value = '';
-        } else {
-            showMessage(data.detail || 'Ошибка регистрации', false);
+        async function register() {
+            const email = document.getElementById('regEmail').value;
+            const password = document.getElementById('regPassword').value;
+            
+            if (!email || !password) {
+                showMessage('Заполните все поля', false);
+                return;
+            }
+            
+            try {
+                const formData = new FormData();
+                formData.append('email', email);
+                formData.append('password', password);
+                
+                const response = await fetch('http://127.0.0.1:8000/register', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showMessage('Регистрация успешна! Теперь войдите', true);
+                    showLogin();
+                } else {
+                    showMessage(data.detail || 'Ошибка регистрации', false);
+                }
+            } catch (error) {
+                showMessage('Ошибка подключения к серверу', false);
+            }
         }
-    } catch (error) {
-        showMessage('Ошибка подключения к серверу', false);
-    }
-}
-
-// Вход (первый шаг)
-async function login() {
-    const email = document.getElementById('loginEmail').value;
-    const password = document.getElementById('loginPassword').value;
-    
-    if (!email || !password) {
-        showMessage('Заполните все поля', false);
-        return;
-    }
-    
-    try {
-        const formData = new FormData();
-        formData.append('email', email);
-        formData.append('password', password);
         
-        const response = await fetch('http://127.0.0.1:8000/login', {
-            method: 'POST',
-            body: formData
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            showCodeForm(data.user_id);
-            showMessage('Код отправлен на почту! Проверьте ' + email, true);
-            // Очищаем поле пароля
-            document.getElementById('loginPassword').value = '';
-        } else {
-            showMessage(data.detail || 'Ошибка входа', false);
+        async function login() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            if (!email || !password) {
+                showMessage('Заполните все поля', false);
+                return;
+            }
+            
+            try {
+                const formData = new FormData();
+                formData.append('email', email);
+                formData.append('password', password);
+                
+                const response = await fetch('http://127.0.0.1:8000/login', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showCodeForm(data.user_id);
+                    showMessage('Код отправлен на почту!', true);
+                } else {
+                    showMessage(data.detail || 'Ошибка входа', false);
+                }
+            } catch (error) {
+                showMessage('Ошибка подключения к серверу', false);
+            }
         }
-    } catch (error) {
-        showMessage('Ошибка подключения к серверу', false);
-    }
-}
-
-// Проверка кода (второй шаг)
-async function verifyCode() {
-    const code = document.getElementById('code').value;
-    
-    if (!code) {
-        showMessage('Введите код', false);
-        return;
-    }
-    
-    try {
-        const formData = new FormData();
-        formData.append('user_id', currentUserId);
-        formData.append('code', code);
         
-        const response = await fetch('http://127.0.0.1:8000/verify-code', {
-            method: 'POST',
-            body: formData
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            // Успешный вход! Показываем профиль
-            showUserProfile(data.user.email);
-            showMessage('Добро пожаловать!', true);
-            // Очищаем поле кода
-            document.getElementById('code').value = '';
-        } else {
-            showMessage(data.detail || 'Неверный код', false);
+        async function verifyCode() {
+            const code = document.getElementById('code').value;
+            
+            if (!code) {
+                showMessage('Введите код', false);
+                return;
+            }
+            
+            try {
+                const formData = new FormData();
+                formData.append('user_id', currentUserId);
+                formData.append('code', code);
+                
+                const response = await fetch('http://127.0.0.1:8000/verify-code', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showUserProfile(data.user.email);
+                    showMessage('Добро пожаловать!', true);
+                } else {
+                    showMessage(data.detail || 'Неверный код', false);
+                }
+            } catch (error) {
+                showMessage('Ошибка подключения к серверу', false);
+            }
         }
-    } catch (error) {
-        showMessage('Ошибка подключения к серверу', false);
-    }
-}
+        
+        // ========== РАСЧЁТ МАРШРУТА ==========
+        async function calculateRoute() {
+            const fromCityId = document.getElementById('fromCity').value;
+            const toCityId = document.getElementById('toCity').value;
+            const avgSpeed = document.getElementById('avgSpeed').value;
+            const fuelConsumption = document.getElementById('fuelConsumption').value;
+            const fuelPrice = document.getElementById('fuelPrice').value;
+            
+            if (!fromCityId || !toCityId) {
+                showMessage('Выберите города', false);
+                return;
+            }
+            
+            if (fromCityId === toCityId) {
+                showMessage('Начальный и конечный город не могут совпадать', false);
+                return;
+            }
+            
+            currentFromCity = fromCityId;
+            currentToCity = toCityId;
+            
+            const fromSelect = document.getElementById('fromCity');
+            const toSelect = document.getElementById('toCity');
+            currentFromCityName = fromSelect.options[fromSelect.selectedIndex].text;
+            currentToCityName = toSelect.options[toSelect.selectedIndex].text;
+            
+            try {
+                const response = await fetch('http://127.0.0.1:8000/trip/calculate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        from_city_id: parseInt(fromCityId),
+                        to_city_id: parseInt(toCityId),
+                        avg_speed: parseFloat(avgSpeed),
+                        fuel_consumption: parseFloat(fuelConsumption),
+                        fuel_price: parseFloat(fuelPrice)
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('routeResult').style.display = 'block';
+                    document.getElementById('routeResult').innerHTML = `
+                        <h4>📊 ${data.from} → ${data.to}</h4>
+                        <div class="param-row"><span>📏 Расстояние:</span><b>${data.distance_km} км</b></div>
+                        <div class="param-row"><span>⏱️ Время в пути:</span><b>${data.time}</b></div>
+                        <div class="param-row"><span>⛽ Топливо:</span><b>${data.fuel_liters} л</b></div>
+                        <div class="param-row"><span>💰 Стоимость топлива:</span><b>${data.fuel_cost_rub} руб</b></div>
+                        <hr>
+                        <div style="font-size: 12px; color: #666;">🚗 ${data.parameters.avg_speed_kmh} км/ч | ⛽ ${data.parameters.fuel_consumption_l_per_100km} л/100км | 💰 ${data.parameters.fuel_price_rub_per_l} руб/л</div>
+                    `;
+                } else {
+                    showMessage(data.detail || 'Ошибка расчёта', false);
+                }
+            } catch (error) {
+                showMessage('Ошибка подключения к серверу', false);
+            }
+        }
+        
+        // ========== СОХРАНЕНИЕ В ИЗБРАННОЕ ==========
+        async function saveCurrentRoute() {
+            if (!currentUserId) {
+                showMessage('Войдите в аккаунт, чтобы сохранять маршруты', false);
+                return;
+            }
+            
+            if (!currentFromCity || !currentToCity) {
+                showMessage('Сначала рассчитайте маршрут', false);
+                return;
+            }
+            
+            const routeName = prompt('Название маршрута (необязательно):', `${currentFromCityName} → ${currentToCityName}`);
+            
+            try {
+                const formData = new FormData();
+                formData.append('user_id', currentUserId);
+                formData.append('from_city_id', currentFromCity);
+                formData.append('to_city_id', currentToCity);
+                if (routeName && routeName.trim()) {
+                    formData.append('route_name', routeName);
+                }
+                
+                const response = await fetch('http://127.0.0.1:8000/favorites/add', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    showMessage('Маршрут сохранён в избранное!', true);
+                } else {
+                    showMessage('Ошибка сохранения', false);
+                }
+            } catch (error) {
+                showMessage('Ошибка подключения к серверу', false);
+            }
+        }
+        
+        // ========== ИЗБРАННЫЕ МАРШРУТЫ ==========
+        async function loadFavorites() {
+            if (!currentUserId) {
+                document.getElementById('favoritesList').innerHTML = '<p>Войдите в аккаунт</p>';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`http://127.0.0.1:8000/favorites/${currentUserId}`);
+                const routes = await response.json();
+                
+                const listDiv = document.getElementById('favoritesList');
+                
+                if (routes.length === 0) {
+                    listDiv.innerHTML = '<p>У вас пока нет избранных маршрутов</p>';
+                    return;
+                }
+                
+                listDiv.innerHTML = routes.map(route => `
+                    <div class="favorite-item">
+                        <div><b>${escapeHtml(route.route_name || `${route.from_city_name} → ${route.to_city_name}`)}</b></div>
+                        <div style="font-size: 12px; color: #666;">${route.from_city_name} → ${route.to_city_name}</div>
+                        <div class="param-row"><span>📏 Расстояние:</span>${route.distance_km} км</div>
+                        <div class="param-row"><span>⏱️ Время:</span>${route.time_str || '—'}</div>
+                        <div class="param-row"><span>⛽ Топливо:</span>${route.fuel_liters || '—'} л</div>
+                        <div class="param-row"><span>💰 Стоимость:</span>${route.cost_rub || '—'} руб</div>
+                        <button onclick="useFavoriteRoute(${route.from_city_id}, ${route.to_city_id})" class="btn-secondary">🗺️ Использовать</button>
+                        <button onclick="deleteFavorite(${route.id})" class="btn-danger">🗑️ Удалить</button>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Ошибка загрузки избранного:', error);
+            }
+        }
+        
+        async function deleteFavorite(routeId) {
+            try {
+                const response = await fetch(`http://127.0.0.1:8000/favorites/${currentUserId}/${routeId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    showMessage('Маршрут удалён', true);
+                    loadFavorites();
+                } else {
+                    showMessage('Ошибка удаления', false);
+                }
+            } catch (error) {
+                showMessage('Ошибка подключения к серверу', false);
+            }
+        }
+        
+        function useFavoriteRoute(fromCityId, toCityId) {
+            document.getElementById('fromCity').value = fromCityId;
+            document.getElementById('toCity').value = toCityId;
+            showTab('map');
+            calculateRoute();
+        }
+        
+        // ========== ЗАПУСК ==========
+        initMap();
     </script>
 </body>
 </html>
