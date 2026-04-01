@@ -111,6 +111,70 @@ def verify_email_code(user_id, code):
     finally:
         conn.close()
 
+def save_favorite_route(user_id, from_city_id, to_city_id, route_name=None):
+    """Сохраняет избранный маршрут"""
+    conn = get_bd_connected()
+    if not conn:
+        return False
+    
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO favorite_routes (user_id, from_city_id, to_city_id, route_name)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (user_id, from_city_id, to_city_id) DO NOTHING
+        """, (user_id, from_city_id, to_city_id, route_name))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Ошибка сохранения маршрута: {e}")
+        return False
+    finally:
+        conn.close()
+
+def get_user_favorite_routes(user_id):
+    """Получить все избранные маршруты пользователя"""
+    conn = get_bd_connected()
+    if not conn:
+        return []
+    
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("""
+            SELECT fr.id, fr.from_city_id, fr.to_city_id, fr.route_name, fr.created_at,
+                   c1.name as from_city_name, c2.name as to_city_name,
+                   c1.latitude as from_lat, c1.longitude as from_lon,
+                   c2.latitude as to_lat, c2.longitude as to_lon
+            FROM favorite_routes fr
+            JOIN cities c1 ON fr.from_city_id = c1.id
+            JOIN cities c2 ON fr.to_city_id = c2.id
+            WHERE fr.user_id = %s
+            ORDER BY fr.created_at DESC
+        """, (user_id,))
+        return cur.fetchall()
+    finally:
+        conn.close()
+
+def delete_favorite_route(user_id, route_id):
+    """Удалить избранный маршрут"""
+    conn = get_bd_connected()
+    if not conn:
+        return False
+    
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            DELETE FROM favorite_routes 
+            WHERE id = %s AND user_id = %s
+        """, (route_id, user_id))
+        conn.commit()
+        return cur.rowcount > 0
+    except Exception as e:
+        print(f"Ошибка удаления маршрута: {e}")
+        return False
+    finally:
+        conn.close()
+
 
 if __name__ == "__main__":
     conn = get_bd_connected()
