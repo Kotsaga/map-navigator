@@ -6,6 +6,9 @@ from database import get_bd_connected, create_user, get_user_by_email, save_emai
 from psycopg2.extras import RealDictCursor  
 from auth import verify_password, generate_code
 from email_utils import send_2fa_code   
+from route import trip_calc
+from database import save_favorite_route, get_user_favorite_routes, delete_favorite_route
+from pydantic import BaseModel
 
 # Создаём приложение 
 app = FastAPI(title="Навигатор")
@@ -157,6 +160,130 @@ def get_profile(user_id: int):
             raise HTTPException(status_code=404, detail="Пользователь не найден")
         
         return user
+    finally:
+        conn.close()
+
+@app.get("/distance/{city1_id}/{city2_id}")
+def get_distance(city1_id: int, city2_id: int):
+    """Расстояние между городами по прямой (C++ модуль)"""
+    conn = get_bd_connected()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Ошибка подключения к БД")
+    
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT id, name, latitude, longitude FROM cities WHERE id IN (%s, %s)", 
+                   (city1_id, city2_id))
+        cities = cur.fetchall()
+        
+        if len(cities) != 2:
+            raise HTTPException(status_code=404, detail="Город не найден")
+        
+        city1 = cities[0] if cities[0]['id'] == city1_id else cities[1]
+        city2 = cities[1] if cities[0]['id'] == city1_id else cities[0]
+        
+        # Вызываем C++ модуль (используем calculate_trip, но берём только расстояние)
+        result = trip_calc.calculate_trip(
+            city1['latitude'], city1['longitude'],
+            city2['latitude'], city2['longitude']
+        )
+        
+        return {
+            "from": city1['name'],
+            "to": city2['name'],
+            "distance_km": result['distance_km']
+        }
+    finally:
+        conn.close()
+
+@app.post("/favorites/add")
+def add_favorite_route(
+    user_id: int = Form(...),
+    from_city_id: int = Form(...),
+    to_city_id: int = Form(...),
+    route_name: str = Form(None)
+):
+    """Сохранить маршрут в избранное"""
+    if save_favorite_route(user_id, from_city_id, to_city_id, route_name):
+        return {"message": "Маршрут сохранён"}
+    raise HTTPException(status_code=500, detail="Ошибка сохранения")
+
+@app.get("/favorites/{user_id}")
+def get_favorites(user_id: int):
+    """Получить все избранные маршруты"""
+    routes = get_user_favorite_routes(user_id)
+    
+    # Добавляем параметры поездки для каждого маршрута
+    for route in routes:
+        # Используем C++ модуль для расчёта
+        result = trip_calc.calculate_trip(
+            route['from_lat'], route['from_lon'],
+            route['to_lat'], route['to_lon']
+        )
+        route['distance_km'] = result['distance_km']
+        route['time_hours'] = result['time_hours']
+        route['time_str'] = result['time_str']
+        route['fuel_liters'] = result['fuel_liters']
+        route['cost_rub'] = result['cost_rub']
+    
+    return routes
+
+@app.delete("/favorites/{user_id}/{route_id}")
+def remove_favorite(user_id: int, route_id: int):
+    """Удалить избранный маршрут"""
+    if delete_favorite_route(user_id, route_id):
+        return {"message": "Маршрут удалён"}
+    raise HTTPException(status_code=404, detail="Маршрут не найден")
+
+# Модель для запроса с параметрами поездки
+class TripRequest(BaseModel):
+    from_city_id: int
+    to_city_id: int
+    avg_speed: float = 90.0      # км/ч (по умолчанию 90)
+    fuel_consumption: float = 8.0 # л/100км (по умолчанию 8)
+    fuel_price: float = 55.0      # руб/л (по умолчанию 55)
+
+@app.post("/trip/calculate")
+def calculate_trip(request: TripRequest):
+    """Рассчитывает параметры поездки с учётом скорости, расхода и цены топлива"""
+    conn = get_bd_connected()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Ошибка подключения к БД")
+    
+    try:
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT id, name, latitude, longitude FROM cities WHERE id IN (%s, %s)", 
+                   (request.from_city_id, request.to_city_id))
+        cities = cur.fetchall()
+        
+        if len(cities) != 2:
+            raise HTTPException(status_code=404, detail="Город не найден")
+        
+        city1 = cities[0] if cities[0]['id'] == request.from_city_id else cities[1]
+        city2 = cities[1] if cities[0]['id'] == request.from_city_id else cities[0]
+        
+        # Вызываем C++ модуль с параметрами
+        result = trip_calc.calculate_trip(
+            city1['latitude'], city1['longitude'],
+            city2['latitude'], city2['longitude'],
+            request.avg_speed,
+            request.fuel_consumption,
+            request.fuel_price
+        )
+        
+        return {
+            "from": city1['name'],
+            "to": city2['name'],
+            "distance_km": result['distance_km'],
+            "time": result['time_str'],
+            "fuel_liters": result['fuel_liters'],
+            "fuel_cost_rub": result['cost_rub'],
+            "parameters": {
+                "avg_speed_kmh": request.avg_speed,
+                "fuel_consumption_l_per_100km": request.fuel_consumption,
+                "fuel_price_rub_per_l": request.fuel_price
+            }
+        }
     finally:
         conn.close()
 
