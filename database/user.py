@@ -42,6 +42,19 @@ CREATE TABLE email_codes (
 );
 """)
 
+# Создаём таблицу избранных маршрутов
+cursor.execute("""
+CREATE TABLE favorite_routes (
+    id SERIAL PRIMARY KEY,                                 
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,   
+    from_city_id INTEGER REFERENCES cities(id) ON DELETE CASCADE,  
+    to_city_id INTEGER REFERENCES cities(id) ON DELETE CASCADE,   
+    route_name VARCHAR(100),     
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,     
+    UNIQUE(user_id, from_city_id, to_city_id)    
+);
+""")
+
 conn.commit()
 
 cursor.close()
